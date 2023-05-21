@@ -15,8 +15,8 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
     /// View
     var label: UILabel!
     
-    /// Timer
-    var timer: Timer?
+    /// link
+    var display: CADisplayLink!
     
     public override func viewDidLoad() {
         
@@ -24,7 +24,7 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
         view.backgroundColor = preferences.backgroundColor
         
         label = UILabel()
-        label.text = preferences.text
+        label.text = (preferences.text ?? "").count == 0 ? "Touch Me" : preferences.text
         label.textColor = preferences.textColor
         label.font = font(from: preferences.fontSize)
         label.transform = CGAffineTransformMakeRotation(CGFloat.pi * 0.5)
@@ -35,7 +35,7 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
     }
     
     func updateLabelWidth() {
-        let width = (self.preferences.text as NSString).boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [
+        let width = ((self.label.text ?? "") as NSString).boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [
             .font: self.font(from: self.preferences.fontSize)
         ], context: nil).width
         var frame = self.label.frame
@@ -55,30 +55,12 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
         
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         
-        let timer = Timer(timeInterval: 1, repeats: true, block: { [weak self] timer in
-            guard let self = self else { return }
-            
-            UIView.animate(withDuration: 1, delay: 0, options: .curveLinear) {
-                var frame = self.label.frame
-                frame.origin.y -= self.speed(from: self.preferences.speed)
-                self.label.frame = frame
-            } completion: { _ in
-                print(self.label.frame.maxY)
-                let overflow = self.label.frame.maxY < 0
-                if overflow {
-                    var frame = self.label.frame
-                    frame.origin.y = self.view.frame.height
-                    self.label.frame = frame
-                }
-            }
-        })
-        
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        display = CADisplayLink(target: self, selector: #selector(update))
+        display.add(to: RunLoop.main, forMode: .common)
     }
     
     public override func viewDidDisappear(_ animated: Bool) {
-        timer?.invalidate()
+        display.invalidate()
     }
     
     public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -86,7 +68,7 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
         let observer = SettingsController.Observer { [weak self] text in
             
             guard let self = self else { return }
-            self.label.text = text
+            self.label.text = text.count > 0 ? text : "Touch Me"
             
             /// update label size
             self.updateLabelWidth()
@@ -120,6 +102,22 @@ public class EntryController: UIViewController, UIGestureRecognizerDelegate {
 
 extension EntryController {
     
+    @objc func update() {
+        let overflow = self.label.frame.maxY < 0
+        if overflow {
+            var frame = self.label.frame
+            frame.origin.y = self.view.frame.height
+            self.label.frame = frame
+        } else {
+            var frame = self.label.frame
+            frame.origin.y -= self.speed(from: self.preferences.speed)
+            self.label.frame = frame
+        }
+    }
+}
+
+extension EntryController {
+    
     func font(from: SettingsController.FontSize) -> UIFont {
         switch self.preferences.fontSize {
         case .small:
@@ -136,13 +134,13 @@ extension EntryController {
     func speed(from: SettingsController.Speed) -> Double {
         switch self.preferences.speed {
         case .low:
-            return 50
+            return 200.0/Double(UIScreen.main.maximumFramesPerSecond)
         case .normal:
-            return 100
+            return 300.0/Double(UIScreen.main.maximumFramesPerSecond)
         case .fast:
-            return 200
+            return 400.0/Double(UIScreen.main.maximumFramesPerSecond)
         case .speed:
-            return 300
+            return 500.0/Double(UIScreen.main.maximumFramesPerSecond)
         }
     }
 }

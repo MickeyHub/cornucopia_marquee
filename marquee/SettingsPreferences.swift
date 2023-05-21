@@ -15,9 +15,9 @@ class SettingsPreferences {
         self.userDefault = UserDefaults(suiteName: "marquee")
     }
     
-    var text: String {
+    var text: String? {
         get {
-            userDefault?.string(forKey: "text") ?? ""
+            userDefault?.string(forKey: "text")
         }
         set {
             userDefault?.set(newValue, forKey: "text")
